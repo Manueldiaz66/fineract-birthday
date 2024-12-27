@@ -38,6 +38,9 @@ public interface SavingsAccountRepository extends JpaRepository<SavingsAccount, 
     @Query("select sa from SavingsAccount sa where sa.id = :savingsId")
     SavingsAccount findOneLocked(@Param("savingsId") Long id);
 
+    @Query("SELECT sa FROM SavingsAccount sa WHERE FUNCTION('DATE_FORMAT', sa.client.birthdate, '%m-%d') = :birthdate")
+    List<SavingsAccount> findByBirthdate(@Param("birthdate") String birthdate);
+
     @Query("select s_acc from SavingsAccount s_acc where s_acc.gsim.id = :gsimId")
     List<SavingsAccount> findSavingAccountByGsimId(@Param("gsimId") Long gsimId);
 

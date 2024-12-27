@@ -30,6 +30,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -871,6 +873,14 @@ public class ClientHelper extends IntegrationTest {
                 .firstname(Utils.randomStringGenerator("Client_FirstName_", 5)).lastname(Utils.randomStringGenerator("Client_LastName_", 5))
                 .externalId(UUID.randomUUID().toString()).dateFormat(Utils.DATE_FORMAT).locale("en").active(true)
                 .activationDate(DEFAULT_DATE);
+    }
+
+    public static PostClientsRequest defaultClientCreationRequestWithBirthday(String birthday) {
+        return new PostClientsRequest().officeId(1).legalFormId(LEGALFORM_ID_PERSON)
+                .firstname(Utils.randomStringGenerator("Client_FirstName_", 5)).lastname(Utils.randomStringGenerator("Client_LastName_", 5))
+                .externalId(UUID.randomUUID().toString()).dateFormat(Utils.DATE_FORMAT).locale("en").active(true)
+                .activationDate(DEFAULT_DATE)
+                .dateOfBirth(birthday);
     }
 
     public GetLoanAccountLockResponse retrieveLockedAccounts(int page, int limit) {

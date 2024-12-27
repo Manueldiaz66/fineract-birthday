@@ -309,7 +309,7 @@ final class ClientsApiResourceSwagger {
         @Schema(example = "Client_LastName")
         public String lastname;
         @Schema(example = "[2013, 1, 1]")
-        public LocalDate dateOfBirth;
+        public String dateOfBirth;
         @Schema(example = "1")
         public Integer groupId;
         @Schema(example = "dd MMMM yyyy")

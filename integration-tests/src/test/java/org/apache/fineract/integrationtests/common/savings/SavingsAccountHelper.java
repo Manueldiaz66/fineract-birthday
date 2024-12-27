@@ -20,6 +20,9 @@ package org.apache.fineract.integrationtests.common.savings;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.restassured.specification.RequestSpecification;
 import io.restassured.specification.ResponseSpecification;
 import jakarta.ws.rs.core.HttpHeaders;
@@ -926,6 +929,13 @@ public class SavingsAccountHelper {
         final String GSIM_URL = "/fineract-provider/api/v1/savingsaccounts/gsim/" + gsimID + "?" + Utils.TENANT_IDENTIFIER;
         return Utils.performServerPut(requestSpec, responseSpec, GSIM_URL,
                 updateGsimJSON(clientID.toString(), groupID.toString(), productID.toString()), "");
+    }
+
+    public static JsonArray getSavingsAccountsByBirthdate(final String month, final String day, final RequestSpecification requestSpec, final ResponseSpecification responseSpec) {
+        final String URL = SAVINGS_ACCOUNT_URL + "?month=" + month + "&day=" + day + "&" + Utils.TENANT_IDENTIFIER;
+        String apiResponse = Utils.performServerGet(requestSpec, responseSpec, URL);
+        JsonObject jsonObject = JsonParser.parseString(apiResponse).getAsJsonObject();
+        return jsonObject.getAsJsonArray("pageItems");
     }
 
 }

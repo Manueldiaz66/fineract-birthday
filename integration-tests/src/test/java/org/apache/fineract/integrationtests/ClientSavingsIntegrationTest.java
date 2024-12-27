@@ -19,7 +19,12 @@
 package org.apache.fineract.integrationtests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.builder.ResponseSpecBuilder;
 import io.restassured.http.ContentType;
@@ -39,6 +44,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import org.apache.fineract.client.models.PostClientsRequest;
 import org.apache.fineract.client.models.PostPaymentTypesRequest;
 import org.apache.fineract.client.models.PostPaymentTypesResponse;
 import org.apache.fineract.integrationtests.common.ClientHelper;
@@ -84,6 +90,57 @@ public class ClientSavingsIntegrationTest {
     private SchedulerJobHelper scheduleJobHelper;
     private PaymentTypeHelper paymentTypeHelper;
 
+    @Test
+    public void testFilterSavingsAccountsByClientBirthdayExactMatch() {
+        this.savingsAccountHelper = new SavingsAccountHelper(this.requestSpec, this.responseSpec);
+        String birthday1 = "01 January 1990";
+        String birthday2 = "15 June 1985";
+        String birthday3 = "31 December 2000";
+
+        final Integer client1Id = createClientWithBirthday(birthday1);
+        final Integer client2Id = createClientWithBirthday(birthday2);
+        final Integer client3Id = createClientWithBirthday(birthday3);
+        final Integer client4Id = createClientWithBirthday(birthday3);
+
+        SavingsAccountHelper.openSavingsAccount(this.requestSpec, this.responseSpec, client1Id, "0");
+        SavingsAccountHelper.openSavingsAccount(this.requestSpec, this.responseSpec, client2Id, "0");
+        SavingsAccountHelper.openSavingsAccount(this.requestSpec, this.responseSpec, client3Id, "0");
+        SavingsAccountHelper.openSavingsAccount(this.requestSpec, this.responseSpec, client4Id, "0");
+
+        JsonArray pageItems = SavingsAccountHelper.getSavingsAccountsByBirthdate("1", "1", this.requestSpec, this.responseSpec);
+
+
+        assertEquals(1, pageItems.size(), "Expected 1 record for birthdate 1 January.");
+
+        List<Integer> clientIds = new ArrayList<>();
+        for (JsonElement element : pageItems) {
+            JsonObject account = element.getAsJsonObject();
+            clientIds.add(account.get("clientId").getAsInt());
+        }
+        assertTrue(clientIds.contains(client1Id), "Client ID for 1 January birthdate is missing.");
+
+        pageItems = SavingsAccountHelper.getSavingsAccountsByBirthdate("12", "31", this.requestSpec, this.responseSpec);
+
+        assertEquals(2, pageItems.size(), "Expected 2 records for birthdate 31 December.");
+
+        clientIds.clear();
+        for (JsonElement element : pageItems) {
+            JsonObject account = element.getAsJsonObject();
+            clientIds.add(account.get("clientId").getAsInt());
+        }
+        assertTrue(clientIds.contains(client3Id), "Client ID for 31 December birthdate (Client 3) is missing.");
+        assertTrue(clientIds.contains(client4Id), "Client ID for 31 December birthdate (Client 4) is missing.");
+
+    }
+
+    private Integer createClientWithBirthday(String birthday) {
+
+        PostClientsRequest clientData = ClientHelper.defaultClientCreationRequestWithBirthday(birthday);
+        final Integer clientID = ClientHelper.createClient(this.requestSpec, this.responseSpec, clientData);
+        ClientHelper.verifyClientCreatedOnServer(this.requestSpec, this.responseSpec, clientID);
+        return clientID;
+    }
+
     @BeforeEach
     public void setup() {
         Utils.initializeRESTAssured();
@@ -114,7 +171,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -158,7 +215,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -202,7 +259,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -267,7 +324,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -594,11 +651,11 @@ public class ClientSavingsIntegrationTest {
         summary = this.savingsAccountHelper.getSavingsSummary(savingsId);
         assertEquals(balance, summary.get("accountBalance"), "Verifying Adjusted Balance");
         withdrawTransaction = this.savingsAccountHelper.getSavingsTransaction(savingsId, withdrawTransactionId);
-        Assertions.assertTrue((Boolean) withdrawTransaction.get("reversed"));
+        assertTrue((Boolean) withdrawTransaction.get("reversed"));
 
         this.savingsAccountHelper.undoSavingsAccountTransaction(savingsId, newWithdrawTransactionId);
         newWithdrawTransaction = this.savingsAccountHelper.getSavingsTransaction(savingsId, withdrawTransactionId);
-        Assertions.assertTrue((Boolean) newWithdrawTransaction.get("reversed"));
+        assertTrue((Boolean) newWithdrawTransaction.get("reversed"));
         summary = this.savingsAccountHelper.getSavingsSummary(savingsId);
         balance += Float.parseFloat(WITHDRAW_AMOUNT_ADJUSTED);
         assertEquals(balance, summary.get("accountBalance"), "Verifying Balance After Undo Transaction");
@@ -663,13 +720,13 @@ public class ClientSavingsIntegrationTest {
 
         Integer savingsChargeId = (Integer) chargesPendingState.get(0).get("id");
         HashMap chargeChanges = this.savingsAccountHelper.updateCharges(savingsChargeId, savingsId);
-        Assertions.assertTrue(chargeChanges.containsKey("amount"));
+        assertTrue(chargeChanges.containsKey("amount"));
 
         Integer deletedChargeId = this.savingsAccountHelper.deleteCharge(savingsChargeId, savingsId);
         assertEquals(savingsChargeId, deletedChargeId);
 
         chargesPendingState = this.savingsAccountHelper.getSavingsCharges(savingsId);
-        Assertions.assertTrue(chargesPendingState == null || chargesPendingState.size() == 0);
+        assertTrue(chargesPendingState == null || chargesPendingState.size() == 0);
 
         savingsStatusHashMap = this.savingsAccountHelper.approveSavings(savingsId);
         SavingsStatusChecker.verifySavingsIsApproved(savingsStatusHashMap);
@@ -681,7 +738,7 @@ public class ClientSavingsIntegrationTest {
         Assertions.assertNotNull(chargeId);
 
         ArrayList<HashMap> charges = this.savingsAccountHelper.getSavingsCharges(savingsId);
-        Assertions.assertTrue(charges == null || charges.size() == 0);
+        assertTrue(charges == null || charges.size() == 0);
 
         this.savingsAccountHelper.addChargesForSavings(savingsId, chargeId, true);
         charges = this.savingsAccountHelper.getSavingsCharges(savingsId);
@@ -828,7 +885,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -961,7 +1018,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -1211,7 +1268,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -1473,7 +1530,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -1640,7 +1697,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -1789,7 +1846,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -1839,7 +1896,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -1856,7 +1913,7 @@ public class ClientSavingsIntegrationTest {
         assertEquals(summaryBefore, summary);
 
         final HashMap changes = this.savingsAccountHelper.updateSavingsAccountWithHoldTaxStatus(savingsId, false);
-        Assertions.assertTrue(changes.containsKey("withHoldTax"));
+        assertTrue(changes.containsKey("withHoldTax"));
 
         this.savingsAccountHelper.postInterestForSavings(savingsId);
         summary = this.savingsAccountHelper.getSavingsSummary(savingsId);
@@ -1899,7 +1956,7 @@ public class ClientSavingsIntegrationTest {
 
             HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                     ACCOUNT_TYPE_INDIVIDUAL);
-            Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+            assertTrue(modifications.containsKey("submittedOnDate"));
 
             this.savingsAccountHelper.addChargesForSavings(savingsId, savingsChargeId, false);
 
@@ -1919,7 +1976,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -2594,7 +2651,7 @@ public class ClientSavingsIntegrationTest {
 
         final Integer undoSavingsTransaction = this.savingsAccountHelper.undoSavingsAccountTransaction(savingsId, depositTransactionId);
         HashMap reversedDepositTransaction = this.savingsAccountHelper.getSavingsTransaction(savingsId, depositTransactionId);
-        Assertions.assertTrue((Boolean) reversedDepositTransaction.get("reversed"));
+        assertTrue((Boolean) reversedDepositTransaction.get("reversed"));
 
         HashMap summary = this.savingsAccountHelper.getSavingsSummary(savingsId);
 
@@ -2726,13 +2783,13 @@ public class ClientSavingsIntegrationTest {
 
         HashMap reversedDepositTransaction = this.savingsAccountHelper.getSavingsTransaction(savingsId, depositTransactionId);
 
-        Assertions.assertTrue((Boolean) reversedDepositTransaction.get("reversed"));
+        assertTrue((Boolean) reversedDepositTransaction.get("reversed"));
 
         List<HashMap> transactions = this.savingsAccountHelper.getSavingsTransactions(savingsId);
 
         HashMap reversalDepositTransaction = transactions.get(0);
 
-        Assertions.assertTrue((Boolean) reversalDepositTransaction.get("isReversal"));
+        assertTrue((Boolean) reversalDepositTransaction.get("isReversal"));
 
         HashMap summary = this.savingsAccountHelper.getSavingsSummary(savingsId);
 
@@ -2897,7 +2954,7 @@ public class ClientSavingsIntegrationTest {
 
         HashMap modifications = this.savingsAccountHelper.updateSavingsAccount(clientID, savingsProductID, savingsId,
                 ACCOUNT_TYPE_INDIVIDUAL);
-        Assertions.assertTrue(modifications.containsKey("submittedOnDate"));
+        assertTrue(modifications.containsKey("submittedOnDate"));
 
         HashMap savingsStatusHashMap = SavingsStatusChecker.getStatusOfSavings(this.requestSpec, this.responseSpec, savingsId);
         SavingsStatusChecker.verifySavingsIsPending(savingsStatusHashMap);
@@ -2913,7 +2970,7 @@ public class ClientSavingsIntegrationTest {
         Assertions.assertNotNull(chargeId);
 
         ArrayList<HashMap> charges = this.savingsAccountHelper.getSavingsCharges(savingsId);
-        Assertions.assertTrue(charges == null || charges.size() == 0);
+        assertTrue(charges == null || charges.size() == 0);
 
         this.savingsAccountHelper.depositToSavingsAccount(savingsId, "100", "05 March 2013", CommonConstants.RESPONSE_RESOURCE_ID);
 
@@ -3085,7 +3142,7 @@ public class ClientSavingsIntegrationTest {
                 break;
             }
         }
-        Assertions.assertTrue(reversalFlag);
+        assertTrue(reversalFlag);
     }
 
     @Test
