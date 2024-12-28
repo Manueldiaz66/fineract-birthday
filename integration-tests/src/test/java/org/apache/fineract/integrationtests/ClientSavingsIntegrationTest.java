@@ -93,10 +93,16 @@ public class ClientSavingsIntegrationTest {
     @Test
     public void testFilterSavingsAccountsByClientBirthdayExactMatch() {
         this.savingsAccountHelper = new SavingsAccountHelper(this.requestSpec, this.responseSpec);
+
+        // capture old counts to avoid failure on rerun
+        int pageItemsOldJan = SavingsAccountHelper.getSavingsAccountsByBirthdate("1", "1", this.requestSpec, this.responseSpec).size();
+        int pageItemsOldDec = SavingsAccountHelper.getSavingsAccountsByBirthdate("12", "31", this.requestSpec, this.responseSpec).size();
+
         String birthday1 = "01 January 1990";
         String birthday2 = "15 June 1985";
         String birthday3 = "31 December 2000";
 
+        // create clients and open saving accounts
         final Integer client1Id = createClientWithBirthday(birthday1);
         final Integer client2Id = createClientWithBirthday(birthday2);
         final Integer client3Id = createClientWithBirthday(birthday3);
@@ -107,10 +113,10 @@ public class ClientSavingsIntegrationTest {
         SavingsAccountHelper.openSavingsAccount(this.requestSpec, this.responseSpec, client3Id, "0");
         SavingsAccountHelper.openSavingsAccount(this.requestSpec, this.responseSpec, client4Id, "0");
 
+
+        // confirm client accounts are filtered correctly
         JsonArray pageItems = SavingsAccountHelper.getSavingsAccountsByBirthdate("1", "1", this.requestSpec, this.responseSpec);
-
-
-        assertEquals(1, pageItems.size(), "Expected 1 record for birthdate 1 January.");
+        assertEquals(1 + pageItemsOldJan, pageItems.size(), "Expected 1 record for birthdate 1 January.");
 
         List<Integer> clientIds = new ArrayList<>();
         for (JsonElement element : pageItems) {
@@ -119,9 +125,9 @@ public class ClientSavingsIntegrationTest {
         }
         assertTrue(clientIds.contains(client1Id), "Client ID for 1 January birthdate is missing.");
 
-        pageItems = SavingsAccountHelper.getSavingsAccountsByBirthdate("12", "31", this.requestSpec, this.responseSpec);
 
-        assertEquals(2, pageItems.size(), "Expected 2 records for birthdate 31 December.");
+        pageItems = SavingsAccountHelper.getSavingsAccountsByBirthdate("12", "31", this.requestSpec, this.responseSpec);
+        assertEquals(2 + pageItemsOldDec, pageItems.size(), "Expected 2 records for birthdate 31 December.");
 
         clientIds.clear();
         for (JsonElement element : pageItems) {
@@ -130,6 +136,8 @@ public class ClientSavingsIntegrationTest {
         }
         assertTrue(clientIds.contains(client3Id), "Client ID for 31 December birthdate (Client 3) is missing.");
         assertTrue(clientIds.contains(client4Id), "Client ID for 31 December birthdate (Client 4) is missing.");
+
+
 
     }
 
